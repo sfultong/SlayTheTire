@@ -1,0 +1,13 @@
+flags: {}
+
+#allow-different-user: true
+
+packages:
+- .
+
+resolver: lts-13.19
+
+system-ghc: true
+
+#nix:
+#        enable: true

@@ -16,7 +16,7 @@ let
       sha256 = "16agk33n7kzz5hdjq805mpdcv0cvgxqkvjb5ipq7bn7ahqw0lfil";
     };
     overrides = self: super: {
-      slay = super.callCabal2nix "slay" ./. {};
+      slay = super.callCabal2nix "SlayTheTire" ./. {};
     };
   });
 in
