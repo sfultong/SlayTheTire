@@ -63,8 +63,8 @@ firstPolyArg x = case x of -- case statement means pattern matching, like the le
   PolyTwo b _ -> b
   PolyThree a _ _ -> a
 
-getHealth :: Combatant -> Int
-getHealth = health
+getHealth :: Player -> Int
+getHealth = playerHealth
 
 pairThing :: (Int, String)
 pairThing = (5, "hey theer")
@@ -73,53 +73,81 @@ pairThing = (5, "hey theer")
 
 data Card
   = Hurt Int
+  | Block Int
   deriving (Eq, Show)
 
-data Combatant
-  = Combatant
-    { health :: Int
+data Player
+  = Player
+    { playerHealth :: Int
+    , playerBlock :: Int
     , cards :: [Card]
-    }
+  }
   deriving (Eq, Show)
 
-showCards :: Combatant -> String
-showCards combatant = unlines . map show . zip [1..] $ cards combatant
+data Intent
+  = IntentHurt
+    { intentHurt :: Int }
+  | IntentBuff  
+  deriving (Eq, Show)
+
+data Enemy
+  = Enemy
+  {  enemyHealth :: Int
+  ,  intents :: [Intent]
+  }
+  deriving (Eq, Show)
+
+
+showCards :: Player -> String
+showCards player = unlines . map show . zip [1..] $ cards player
 
 exampleHand :: [Card]
-exampleHand = [Hurt 2, Hurt 3, Hurt 7]
+exampleHand = [Hurt 2, Block 3, Hurt 7]
+
+exampleIntents :: [Intent]
+exampleIntents = [IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
 
 removeAtIndex :: Int -> [a] -> ([a], a)
 removeAtIndex x = (\(hl,tl) -> (hl ++ tail tl, head tl)) . splitAt (x - 1)
 
-removeCard :: Int -> Combatant -> (Combatant, Card)
-removeCard x combatant = let (newCards, card) = removeAtIndex x (cards combatant)
-                         in (combatant {cards = newCards}, card)
+removeCard :: Int -> Player -> (Player, Card)
+removeCard x player = let (newCards, card) = removeAtIndex x (cards player)
+                         in (player {cards = newCards}, card)
 
-getPlayedCard :: Combatant -> IO (Combatant, Card)
-getPlayedCard combatant = do
-  putStrLn $ showCards combatant
+getPlayedCard :: Player -> IO (Player, Card)
+getPlayedCard player = do
+  putStrLn $ showCards player
   putStrLn "Enter the number of the card to play"
   playerInput <- getLine
   let
     selection :: Maybe Int
     selection = readMay playerInput
     validSelection = case selection of
-      Just x | x > 0 && x <= length (cards combatant) -> Just x
+      Just x | x > 0 && x <= length (cards player) -> Just x
       _ -> Nothing
   case validSelection of
-    Just x -> pure . removeCard x $ combatant
+    Just x -> pure . removeCard x $ player
     Nothing -> do
       putStrLn "Invalid selection"
-      getPlayedCard combatant
+      getPlayedCard player
 
-initialPlayer :: Combatant
---initialPlayer = Combatant 10 exampleHand
-initialPlayer = Combatant {health = 10, cards = exampleHand}
+showEnemyIntent :: Enemy -> IO ()
+showEnemyIntent enemy = do
+  putStrLn(show (head (intents enemy)))
+
+initialPlayer :: Player
+--initialPlayer = Player 10 exampleHand
+initialPlayer = Player {playerHealth = 10, cards = exampleHand}
+
+initialEnemy :: Enemy
+initialEnemy = Enemy {enemyHealth = 10, intents = exampleIntents }
 
 main :: IO ()
 main = do
   --putStrLn "Example card hand:"
   -- putStrLn . showCards $ initialPlayer
+  showEnemyIntent initialEnemy
   (newCombatant, selectedCard) <- getPlayedCard initialPlayer
   putStrLn $ "The card selected: " <> show selectedCard
+
 
