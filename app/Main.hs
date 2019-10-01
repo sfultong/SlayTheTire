@@ -103,6 +103,10 @@ data GameState
   ,  enemy :: Enemy
   }
   deriving (Eq, Show)
+modifyPlayer :: (Player -> Player) -> GameState -> GameState
+modifyPlayer f gameState = gameState {player = f $ player gameState}
+modifyEnemy :: (Enemy -> Enemy) -> GameState -> GameState
+modifyEnemy f gameState = gameState {enemy = f $ enemy gameState}
 
 showCards :: Player -> String
 showCards player = unlines . map show . zip [1..] $ cards player
@@ -151,33 +155,31 @@ initialPlayer = Player {playerHealth = 10, cards = exampleHand}
 initialEnemy :: Enemy
 initialEnemy = Enemy {enemyHealth = 10, intents = exampleIntents }
 
-playCard :: Card -> Player -> Enemy -> (Player, Enemy)
-playCard card player enemy =
-  case card of
-    Hurt x -> (player, enemy{enemyHealth=enemyHealth enemy - x})
-    Block x -> (player{playerBlock=x}, enemy)
+playCard :: Card -> GameState -> GameState
+playCard card gameState = f gameState
+  where f = case card of
+          Hurt x -> modifyEnemy (\e -> e{enemyHealth=enemyHealth e - x})
+          Block x -> modifyPlayer (\p -> p{playerBlock=x})
 
-doIntent :: Enemy -> Player -> (Enemy, Player)
-doIntent enemy player =
-  let activeIntent = head (intents enemy)
-      remaningIntents = tail (intents enemy)
-  in case intent of
-    IntentHurt x -> (enemy{intents=remaningIntents}, player{playerHealth=playerHealth player - x})
-    IntentBuff -> (enemy{intents=remaningIntents}, player)
+doIntent :: GameState -> GameState
+doIntent gameState =
+  let activeIntent = head (intents enemy')
+      remaningIntents = tail (intents enemy')
+      enemy' = enemy gameState
+  in case activeIntent of
+    IntentHurt x -> modifyEnemy (\e -> e{intents=remaningIntents}) $ modifyPlayer (\p -> p{playerHealth=playerHealth p - x}) gameState
+    IntentBuff -> modifyEnemy (\e -> e{intents=remaningIntents}) gameState
 
-gameLoop :: (Player, Enemy) -> IO()
-gameLoop (player, enemy) = do
-  showEnemyIntent enemy
-  (newCombatant, selectedCard) <- getPlayedCard player
+gameLoop :: GameState -> IO()
+gameLoop g@(GameState player' enemy') = do
+  showEnemyIntent enemy'
+  (newCombatant, selectedCard) <- getPlayedCard player'
   putStrLn $ "The card selected: " <> show selectedCard
-  let (player, enemy) = playCard selectedCard player enemy
-      (player, enemy) = doIntent enemy player
-  gameLoop (player, enemy)
-
-
+  let modifyGame = doIntent . playCard selectedCard . modifyPlayer (const newCombatant)
+  gameLoop $ modifyGame g
 
 main :: IO ()
 main = do
   --putStrLn "Example card hand:"
   -- putStrLn . showCards $ initialPlayer
-  gameLoop (initialPlayer, initialEnemy)
+  gameLoop (GameState initialPlayer initialEnemy)
