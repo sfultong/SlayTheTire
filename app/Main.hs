@@ -1,6 +1,10 @@
 module Main where
 
 import Safe
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Enemies
+import DataTypes
 
 specialLazy :: Bool
 specialLazy = False && True
@@ -70,39 +74,6 @@ pairThing :: (Int, String)
 pairThing = (5, "hey theer")
 
 ------------------------------ end didactic junk section ----------------------------
-
-data Card
-  = Hurt Int
-  | Block Int
-  deriving (Eq, Show)
-
-data Player
-  = Player
-    { playerHealth :: Int
-    , playerBlock :: Int
-    , cards :: [Card]
-  }
-  deriving (Eq, Show)
-
-data Intent
-  = IntentHurt
-    { intentHurt :: Int }
-  | IntentBuff  
-  deriving (Eq, Show)
-
-data Enemy
-  = Enemy
-  {  enemyHealth :: Int
-  ,  intents :: [Intent]
-  }
-  deriving (Eq, Show)
-
-data GameState
-  = GameState
-  {  player :: Player
-  ,  enemy :: Enemy
-  }
-  deriving (Eq, Show)
 modifyPlayer :: (Player -> Player) -> GameState -> GameState
 modifyPlayer f gameState = gameState {player = f $ player gameState}
 modifyEnemy :: (Enemy -> Enemy) -> GameState -> GameState
@@ -113,9 +84,6 @@ showCards player = unlines . map show . zip [1..] $ cards player
 
 exampleHand :: [Card]
 exampleHand = [Hurt 2, Block 3, Hurt 7]
-
-exampleIntents :: [Intent]
-exampleIntents = [IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
 
 removeAtIndex :: Int -> [a] -> ([a], a)
 removeAtIndex x = (\(hl,tl) -> (hl ++ tail tl, head tl)) . splitAt (x - 1)
@@ -150,10 +118,7 @@ showEnemyIntent enemy =
 
 initialPlayer :: Player
 --initialPlayer = Player 10 exampleHand
-initialPlayer = Player {playerHealth = 10, cards = exampleHand}
-
-initialEnemy :: Enemy
-initialEnemy = Enemy {enemyHealth = 10, intents = exampleIntents }
+initialPlayer = Player {playerHealth = 10, playerBlock = 0, cards = exampleHand}
 
 playCard :: Card -> GameState -> GameState
 playCard card gameState = f gameState
@@ -164,22 +129,25 @@ playCard card gameState = f gameState
 doIntent :: GameState -> GameState
 doIntent gameState =
   let activeIntent = head (intents enemy')
-      remaningIntents = tail (intents enemy')
+      newIntents = tail (intents enemy') ++ [activeIntent]
       enemy' = enemy gameState
   in case activeIntent of
-    IntentHurt x -> modifyEnemy (\e -> e{intents=remaningIntents}) $ modifyPlayer (\p -> p{playerHealth=playerHealth p - x}) gameState
-    IntentBuff -> modifyEnemy (\e -> e{intents=remaningIntents}) gameState
+    IntentHurt x -> modifyEnemy (\e -> e{intents=newIntents}) $ modifyPlayer (\p -> p{playerHealth=playerHealth p - x}) gameState
+    IntentBuff -> modifyEnemy (\e -> e{intents=newIntents}) gameState
 
-gameLoop :: GameState -> IO()
-gameLoop g@(GameState player' enemy') = do
+battleLoop :: GameState -> IO()
+battleLoop g@(GameState player' enemy') = do
   showEnemyIntent enemy'
   (newCombatant, selectedCard) <- getPlayedCard player'
   putStrLn $ "The card selected: " <> show selectedCard
   let modifyGame = doIntent . playCard selectedCard . modifyPlayer (const newCombatant)
-  gameLoop $ modifyGame g
+  battleLoop $ modifyGame g
 
 main :: IO ()
 main = do
   --putStrLn "Example card hand:"
   -- putStrLn . showCards $ initialPlayer
-  gameLoop (GameState initialPlayer initialEnemy)
+  let firstEnemy = Map.lookup "Wollypobber" allEnemiesMap
+  case firstEnemy of  
+    Just e -> battleLoop $ GameState initialPlayer e
+    Nothing -> putStrLn "You Win!"
