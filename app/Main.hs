@@ -83,7 +83,12 @@ showCards :: Player -> String
 showCards player = unlines . map show . zip [1..] $ cards player
 
 exampleHand :: [Card]
-exampleHand = [Hurt 2, Block 3, Hurt 7]
+exampleHand = 
+  [ Card{cost = 1, cardHurt = 2, cardBlock = 0}
+  , Card{cost = 1, cardHurt = 0, cardBlock = 3}
+  , Card{cost = 2, cardHurt = 7, cardBlock = 0}
+  , Card{cost = 2, cardHurt = 6, cardBlock = 2}
+  ]
 
 removeAtIndex :: Int -> [a] -> ([a], a)
 removeAtIndex x = (\(hl,tl) -> (hl ++ tail tl, head tl)) . splitAt (x - 1)
@@ -94,6 +99,7 @@ removeCard x player = let (newCards, card) = removeAtIndex x (cards player)
 
 getPlayedCard :: Player -> IO (Player, Card)
 getPlayedCard player = do
+  putStrLn "Cards:"
   putStrLn $ showCards player
   putStrLn "Enter the number of the card to play"
   playerInput <- getLine
@@ -109,22 +115,21 @@ getPlayedCard player = do
       putStrLn "Invalid selection"
       getPlayedCard player
 
-showEnemyIntent :: Enemy -> IO ()
-showEnemyIntent enemy =
-  let currentIntent = head (intents enemy)
-  in putStrLn $ "The enemy intends to " <> case currentIntent of
-    IntentHurt x -> "hurt for " <> show x
-    IntentBuff -> "apply a buff"
+showEnemyStatus :: Enemy -> IO ()
+showEnemyStatus enemy =
+  let currentIntent = head (intents enemy) in
+    putStrLn $ enemyName enemy <> ": Health " <> show(enemyHealth enemy) <> ", Block " <> show(enemyBlock enemy)
+      <> "  Intent: " <> case currentIntent of
+      IntentHurt x -> "hurt for " <> show x <> "\n"
+      IntentBuff -> "apply a buff\n"
 
 initialPlayer :: Player
 --initialPlayer = Player 10 exampleHand
-initialPlayer = Player {playerHealth = 10, playerBlock = 0, cards = exampleHand}
+initialPlayer = Player {playerHealth = 10, playerBlock = 0, playerMana = 3, playerDraw = 2, cards = exampleHand}
 
 playCard :: Card -> GameState -> GameState
-playCard card gameState = f gameState
-  where f = case card of
-          Hurt x -> modifyEnemy (\e -> e{enemyHealth=enemyHealth e - x})
-          Block x -> modifyPlayer (\p -> p{playerBlock=x})
+playCard card gameState =
+  modifyPlayer (\p -> p{playerBlock=cardBlock card}) $ modifyEnemy (\e -> e{enemyHealth=enemyHealth e - cardHurt card}) gameState
 
 doIntent :: GameState -> GameState
 doIntent gameState =
@@ -132,20 +137,23 @@ doIntent gameState =
       newIntents = tail (intents enemy') ++ [activeIntent]
       enemy' = enemy gameState
   in case activeIntent of
-    IntentHurt x -> modifyEnemy (\e -> e{intents=newIntents}) $ modifyPlayer (\p -> p{playerHealth=playerHealth p - x}) gameState
+    IntentHurt h -> modifyEnemy (\e -> e{intents=newIntents}) $ modifyPlayer (\p -> p{playerHealth=minimum [playerHealth p, playerHealth p + playerBlock p - h]}) gameState
     IntentBuff -> modifyEnemy (\e -> e{intents=newIntents}) gameState
+
+roundCleanup :: GameState -> GameState
+roundCleanup gameState =
+  modifyPlayer (\p -> p{playerBlock=0}) gameState
 
 battleLoop :: GameState -> IO()
 battleLoop g@(GameState player' enemy') = do
-  showEnemyIntent enemy'
+  showEnemyStatus enemy'
   (newCombatant, selectedCard) <- getPlayedCard player'
   putStrLn $ "The card selected: " <> show selectedCard
-  let modifyGame = doIntent . playCard selectedCard . modifyPlayer (const newCombatant)
+  let modifyGame = roundCleanup . doIntent . playCard selectedCard . modifyPlayer (const newCombatant)
   battleLoop $ modifyGame g
 
 main :: IO ()
 main = do
-  --putStrLn "Example card hand:"
   -- putStrLn . showCards $ initialPlayer
   let firstEnemy = Map.lookup "Wollypobber" allEnemiesMap
   case firstEnemy of  

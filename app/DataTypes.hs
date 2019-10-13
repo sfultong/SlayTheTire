@@ -3,22 +3,27 @@ module DataTypes where
 import Safe
 
 data Card
-  = Hurt Int
-  | Block Int
+  = Card
+  {  cost :: Int
+  ,  cardHurt :: Int
+  ,  cardBlock :: Int
+  }
   deriving (Eq, Show)
 
 data Player
   = Player
-    { playerHealth :: Int
-    , playerBlock :: Int
-    , cards :: [Card]
+  {  playerHealth :: Int
+  ,  playerBlock :: Int
+  ,  playerMana :: Int
+  ,  playerDraw :: Int
+  ,  cards :: [Card]
   }
   deriving (Eq, Show)
 
 data Intent
   = IntentHurt
     { intentHurt :: Int }
-  | IntentBuff  
+  | IntentBuff
   deriving (Eq, Show)
 
 data Enemy
