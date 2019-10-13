@@ -115,6 +115,12 @@ getPlayedCard player = do
       putStrLn "Invalid selection"
       getPlayedCard player
 
+showPlayerStatus :: Player -> IO ()
+showPlayerStatus player =
+  putStrLn $ "Player: Health " <> show(playerHealth player) <>
+    ", Block " <> show(playerBlock player) <>
+    ", Mana: " <> show(playerMana player)
+
 showEnemyStatus :: Enemy -> IO ()
 showEnemyStatus enemy =
   let currentIntent = head (intents enemy) in
@@ -146,6 +152,7 @@ roundCleanup gameState =
 
 battleLoop :: GameState -> IO()
 battleLoop g@(GameState player' enemy') = do
+  showPlayerStatus player'
   showEnemyStatus enemy'
   (newCombatant, selectedCard) <- getPlayedCard player'
   putStrLn $ "The card selected: " <> show selectedCard
