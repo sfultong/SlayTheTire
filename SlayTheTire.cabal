@@ -22,4 +22,4 @@ executable slay
                      , containers
                      , safe
   default-language:    Haskell2010
-  other-modules:       Enemies, DataTypes
+  other-modules:       Enemies, DataTypes, Cards

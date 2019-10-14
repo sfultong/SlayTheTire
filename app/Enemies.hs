@@ -6,15 +6,20 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 
-wollypobber = Enemy {
-        enemyName = "Wollypobber",
-        enemyHealth = 10,
-        enemyBlock = 0,
-        intents = [IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
-    }
+allEnemies = [
+    Enemy {
+    enemyName = "Tire",
+    enemyHealth = 10,
+    enemyBlock = 2,
+    intents = [IntentHurt 1, IntentBuff, IntentHurt 3, IntentHurt 4]
+},  
+    Enemy {
+    enemyName = "Wollypobber",
+    enemyHealth = 10,
+    enemyBlock = 0,
+    intents = [IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
+}]
 
--- allEnemiesList :: [(String, Enemy)]
-allEnemiesList = [(enemyName wollypobber, wollypobber)]
+namedEnemiesList = [(enemyName e, e) | e <- allEnemies ]
 
--- allEnemiesMap :: Map String Enemy
-allEnemiesMap = Map.fromList allEnemiesList
+namedEnemiesMap = Map.fromList namedEnemiesList

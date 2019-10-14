@@ -4,7 +4,8 @@ import Safe
 
 data Card
   = Card
-  {  cost :: Int
+  {  cardName :: String
+  ,  cost :: Int
   ,  cardHurt :: Int
   ,  cardBlock :: Int
   }
@@ -16,7 +17,9 @@ data Player
   ,  playerBlock :: Int
   ,  playerMana :: Int
   ,  playerDraw :: Int
-  ,  cards :: [Card]
+  ,  cardDeck :: [Card]
+  ,  cardHand :: [Card]
+  ,  cardDiscards :: [Card]
   }
   deriving (Eq, Show)
 
@@ -28,7 +31,7 @@ data Intent
 
 data Enemy
   = Enemy
-  {  enemyName :: [Char]
+  {  enemyName :: String
   ,  enemyHealth :: Int
   ,  enemyBlock :: Int
   ,  intents :: [Intent]

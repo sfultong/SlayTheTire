@@ -2,8 +2,10 @@ module Main where
 
 import Safe
 import Data.Map (Map)
+import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import Enemies
+import Cards
 import DataTypes
 
 specialLazy :: Bool
@@ -80,34 +82,29 @@ modifyEnemy :: (Enemy -> Enemy) -> GameState -> GameState
 modifyEnemy f gameState = gameState {enemy = f $ enemy gameState}
 
 showCards :: Player -> String
-showCards player = unlines . map show . zip [1..] $ cards player
+showCards player = unlines . map show . zip [1..] $ cardHand player
 
 exampleHand :: [Card]
-exampleHand = 
-  [ Card{cost = 1, cardHurt = 2, cardBlock = 0}
-  , Card{cost = 1, cardHurt = 0, cardBlock = 3}
-  , Card{cost = 2, cardHurt = 7, cardBlock = 0}
-  , Card{cost = 2, cardHurt = 6, cardBlock = 2}
-  ]
+exampleHand = catMaybes [Map.lookup c namedCardsMap | c <- ["Slap", "Slap", "Punch", "Guard", "Hit & Run"] ]
 
 removeAtIndex :: Int -> [a] -> ([a], a)
 removeAtIndex x = (\(hl,tl) -> (hl ++ tail tl, head tl)) . splitAt (x - 1)
 
 removeCard :: Int -> Player -> (Player, Card)
-removeCard x player = let (newCards, card) = removeAtIndex x (cards player)
-                         in (player {cards = newCards}, card)
+removeCard x player = let (newCards, card) = removeAtIndex x (cardHand player)
+                         in (player {cardHand = newCards}, card)
 
 getPlayedCard :: Player -> IO (Player, Card)
 getPlayedCard player = do
   putStrLn "Cards:"
   putStrLn $ showCards player
-  putStrLn "Enter the number of the card to play"
+  putStrLn "Enter the number of the card to play, or p to pass:"
   playerInput <- getLine
   let
     selection :: Maybe Int
     selection = readMay playerInput
     validSelection = case selection of
-      Just x | x > 0 && x <= length (cards player) -> Just x
+      Just x | x > 0 && x <= length (cardHand player) -> Just x
       _ -> Nothing
   case validSelection of
     Just x -> pure . removeCard x $ player
@@ -130,12 +127,20 @@ showEnemyStatus enemy =
       IntentBuff -> "apply a buff\n"
 
 initialPlayer :: Player
---initialPlayer = Player 10 exampleHand
-initialPlayer = Player {playerHealth = 10, playerBlock = 0, playerMana = 3, playerDraw = 2, cards = exampleHand}
+initialPlayer = Player
+  { playerHealth = 10, playerBlock = 0, playerMana = 3, playerDraw = 2
+  , cardDeck = [], cardHand = exampleHand, cardDiscards = []
+  }
 
 playCard :: Card -> GameState -> GameState
 playCard card gameState =
-  modifyPlayer (\p -> p{playerBlock=cardBlock card}) $ modifyEnemy (\e -> e{enemyHealth=enemyHealth e - cardHurt card}) gameState
+  modifyPlayer (\p -> p{
+    playerBlock = playerBlock p + cardBlock card,
+    playerMana = playerMana p - cost card
+    }) $
+  modifyEnemy (\e -> e{
+    enemyHealth=enemyHealth e - cardHurt card
+  }) gameState
 
 doIntent :: GameState -> GameState
 doIntent gameState =
@@ -143,26 +148,34 @@ doIntent gameState =
       newIntents = tail (intents enemy') ++ [activeIntent]
       enemy' = enemy gameState
   in case activeIntent of
-    IntentHurt h -> modifyEnemy (\e -> e{intents=newIntents}) $ modifyPlayer (\p -> p{playerHealth=minimum [playerHealth p, playerHealth p + playerBlock p - h]}) gameState
+    IntentHurt h -> modifyEnemy (\e -> e{
+      intents=newIntents
+      }) $
+      modifyPlayer (\p -> p{
+        playerHealth=minimum [playerHealth p, playerHealth p + playerBlock p - h]
+      }) gameState
     IntentBuff -> modifyEnemy (\e -> e{intents=newIntents}) gameState
 
 roundCleanup :: GameState -> GameState
 roundCleanup gameState =
   modifyPlayer (\p -> p{playerBlock=0}) gameState
 
-battleLoop :: GameState -> IO()
-battleLoop g@(GameState player' enemy') = do
+playerTurnLoop :: GameState -> IO()
+playerTurnLoop g@(GameState player' enemy') = do
   showPlayerStatus player'
   showEnemyStatus enemy'
   (newCombatant, selectedCard) <- getPlayedCard player'
   putStrLn $ "The card selected: " <> show selectedCard
-  let modifyGame = roundCleanup . doIntent . playCard selectedCard . modifyPlayer (const newCombatant)
-  battleLoop $ modifyGame g
+  let modifyGame = playCard selectedCard . modifyPlayer (const newCombatant)
+  playerTurnLoop $ modifyGame g
+
+enemiesTurn :: GameState -> GameState
+enemiesTurn g@(GameState player' enemy') = do
+  doIntent g
 
 main :: IO ()
 main = do
-  -- putStrLn . showCards $ initialPlayer
-  let firstEnemy = Map.lookup "Wollypobber" allEnemiesMap
+  let firstEnemy = Map.lookup "Wollypobber" namedEnemiesMap
   case firstEnemy of  
-    Just e -> battleLoop $ GameState initialPlayer e
+    Just e -> playerTurnLoop $ GameState initialPlayer e
     Nothing -> putStrLn "You Win!"
