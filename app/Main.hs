@@ -81,18 +81,31 @@ modifyPlayer f gameState = gameState {player = f $ player gameState}
 modifyEnemy :: (Enemy -> Enemy) -> GameState -> GameState
 modifyEnemy f gameState = gameState {enemy = f $ enemy gameState}
 
-showCards :: Player -> String
-showCards player = unlines . map show . zip [1..] $ cardHand player
+showTitle :: IO()
+showTitle =
+  putStrLn "\n=== Slay the Tire ==="
 
-exampleHand :: [Card]
-exampleHand = catMaybes [Map.lookup c namedCardsMap | c <- ["Slap", "Slap", "Punch", "Guard", "Hit & Run"] ]
+showCards :: Player -> String
+-- This doesn't work so well anymore now that cards are records
+showCards player = unlines . map show . zip [1..] $ playerHand player
+
+initialDeck :: [Card]
+initialDeck = catMaybes [Map.lookup c namedCardsMap | c <- ["Slap", "Slap", "Punch", "Guard", "Hit & Run"] ]
 
 removeAtIndex :: Int -> [a] -> ([a], a)
 removeAtIndex x = (\(hl,tl) -> (hl ++ tail tl, head tl)) . splitAt (x - 1)
 
 removeCard :: Int -> Player -> (Player, Card)
-removeCard x player = let (newCards, card) = removeAtIndex x (cardHand player)
-                         in (player {cardHand = newCards}, card)
+removeCard x player = let (newCards, card) = removeAtIndex x (playerHand player)
+                         in (player {playerHand = newCards}, card)
+
+drawCards :: GameState -> GameState
+drawCards gameState = 
+  modifyPlayer (\p ->
+    let (newCards, newDeck) = splitAt (playerDraw p) (playerDeck p)
+    in p{
+      playerHand = (playerHand p) ++ newCards
+  }) gameState
 
 getPlayedCard :: Player -> IO (Player, Card)
 getPlayedCard player = do
@@ -107,7 +120,7 @@ getPlayedCard player = do
     -- Incorporate mana into whether a card is a valid selection
     -- IDEA: let player borrow resources from future, but has to "send to past" later or universe is destroyed
     validSelection = case selection of
-      Just x | x > 0 && x <= length (cardHand player) -> Just x
+      Just x | x > 0 && x <= length (playerHand player) -> Just x
       _ -> Nothing
   case validSelection of
     Just x -> pure . removeCard x $ player
@@ -121,8 +134,6 @@ showPlayerStatus player =
     ", Block " <> show(playerBlock player) <>
     ", Mana: " <> show(playerMana player)
 
-
-
 showEnemyStatus :: Enemy -> IO ()
 showEnemyStatus enemy =
   let currentIntent = head (intents enemy) in
@@ -134,7 +145,7 @@ showEnemyStatus enemy =
 initialPlayer :: Player
 initialPlayer = Player
   { playerHealth = 10, playerBlock = 0, playerMana = 3, playerDraw = 2
-  , cardDeck = [], cardHand = exampleHand, cardDiscards = []
+  , playerDeck = initialDeck, playerHand = [], playerDiscards = []
   }
 
 playCard :: Card -> GameState -> GameState
@@ -165,10 +176,6 @@ roundCleanup :: GameState -> GameState
 roundCleanup gameState =
   modifyPlayer (\p -> p{playerBlock=0}) gameState
 
-showTitle :: IO()
-showTitle =
-  putStrLn "\n=== Slay the Tire ==="
-
 showBattleStatus :: GameState -> IO()
 showBattleStatus g@(GameState player' enemy') = do
   showPlayerStatus player'
@@ -176,6 +183,7 @@ showBattleStatus g@(GameState player' enemy') = do
 
 playerTurnLoop :: GameState -> IO()
 playerTurnLoop g@(GameState player' enemy') = do
+  showBattleStatus g
   (newCombatant, selectedCard) <- getPlayedCard player'
   putStrLn $ "The card selected: " <> show selectedCard
   let modifyGame = playCard selectedCard . modifyPlayer (const newCombatant)
@@ -191,9 +199,7 @@ enemiesTurn g@(GameState player' enemy') =
 
 battleTurnLoop :: GameState -> IO()
 battleTurnLoop g@(GameState player' enemy') = do
-  showBattleStatus g
-  -- have player draw into cardHand from cardDeck
-  playerTurnLoop g
+  playerTurnLoop $ drawCards g
   -- enemiesTurn
   -- roundCleanup
 

@@ -17,9 +17,9 @@ data Player
   ,  playerBlock :: Int
   ,  playerMana :: Int
   ,  playerDraw :: Int
-  ,  cardDeck :: [Card]
-  ,  cardHand :: [Card]
-  ,  cardDiscards :: [Card]
+  ,  playerDeck :: [Card]
+  ,  playerHand :: [Card]
+  ,  playerDiscards :: [Card]
   }
   deriving (Eq, Show)
 
