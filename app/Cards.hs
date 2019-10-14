@@ -29,6 +29,12 @@ allCards = [
     cost = 1,
     cardHurt = 0,
     cardBlock = 5
+    },
+  Card {
+    cardName = "Slay",
+    cost = 4,
+    cardHurt = 15,
+    cardBlock = 0
 }]
 
 namedCardsList = [(cardName e, e) | e <- allCards ]

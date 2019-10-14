@@ -99,10 +99,13 @@ getPlayedCard player = do
   putStrLn "Cards:"
   putStrLn $ showCards player
   putStrLn "Enter the number of the card to play, or p to pass:"
+  -- Let players input p to pass
   playerInput <- getLine
   let
     selection :: Maybe Int
     selection = readMay playerInput
+    -- Incorporate mana into whether a card is a valid selection
+    -- IDEA: let player borrow resources from future, but has to "send to past" later or universe is destroyed
     validSelection = case selection of
       Just x | x > 0 && x <= length (cardHand player) -> Just x
       _ -> Nothing
@@ -176,6 +179,8 @@ enemiesTurn g@(GameState player' enemy') = do
 battleTurnLoop :: GameState -> IO()
 battleTurnLoop g@(GameState player' enemy') = do
   playerTurnLoop g
+  -- enemiesTurn
+  -- roundCleanup
 
 main :: IO ()
 main = do
