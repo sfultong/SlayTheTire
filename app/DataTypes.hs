@@ -16,6 +16,7 @@ data Player
   {  playerHealth :: Int
   ,  playerBlock :: Int
   ,  playerMana :: Int
+  ,  playerManaMax :: Int
   ,  playerDraw :: Int
   ,  playerDeck :: [Card]
   ,  playerHand :: [Card]

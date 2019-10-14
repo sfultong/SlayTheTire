@@ -1,6 +1,7 @@
 module Main where
 
 import Safe
+import Data.Char (toLower)
 import Data.Map (Map)
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
@@ -104,28 +105,35 @@ drawCards gameState =
   modifyPlayer (\p ->
     let (newCards, newDeck) = splitAt (playerDraw p) (playerDeck p)
     in p{
-      playerHand = (playerHand p) ++ newCards
+      playerHand = (playerHand p) ++ newCards,
+      playerDeck = newDeck
   }) gameState
 
-getPlayedCard :: Player -> IO (Player, Card)
+getPlayedCard :: Player -> IO (Maybe(Player, Card))
 getPlayedCard player = do
   putStrLn "Cards:"
   putStrLn $ showCards player
   putStrLn "Enter the number of the card to play, or p to pass:"
-  -- Let players input p to pass
   playerInput <- getLine
   let
     selection :: Maybe Int
     selection = readMay playerInput
-    -- Incorporate mana into whether a card is a valid selection
     -- IDEA: let player borrow resources from future, but has to "send to past" later or universe is destroyed
     validSelection = case selection of
       Just x | x > 0 && x <= length (playerHand player) -> Just x
       _ -> Nothing
-  case validSelection of
-    Just x -> pure . removeCard x $ player
-    Nothing -> do
-      putStrLn "Invalid selection"
+    validMana = case validSelection of
+      Just x -> cost(snd(removeCard x player)) <= playerMana player
+      Nothing -> False
+  case (validSelection, validMana, playerInput) of
+    (Just x, True, _) -> pure $ pure $ removeCard x $ player
+    (Just x, False, _) -> do
+      putStrLn "Not enough mana."
+      getPlayedCard player
+    (Nothing, _, s) | toLower (head s) == 'p' ->
+      pure Nothing
+    (Nothing, _, _) -> do
+      putStrLn "Invalid selection."
       getPlayedCard player
 
 showPlayerStatus :: Player -> IO ()
@@ -144,7 +152,7 @@ showEnemyStatus enemy =
 
 initialPlayer :: Player
 initialPlayer = Player
-  { playerHealth = 10, playerBlock = 0, playerMana = 3, playerDraw = 2
+  { playerHealth = 10, playerBlock = 0, playerMana = 3, playerManaMax = 3, playerDraw = 2
   , playerDeck = initialDeck, playerHand = [], playerDiscards = []
   }
 
@@ -161,7 +169,7 @@ playCard card gameState =
 doIntent :: GameState -> GameState
 doIntent gameState =
   let activeIntent = head (intents enemy')
-      newIntents = tail (intents enemy') ++ [activeIntent]
+      newIntents = tail (intents enemy')
       enemy' = enemy gameState
   in case activeIntent of
     IntentHurt h -> modifyEnemy (\e -> e{
@@ -174,34 +182,39 @@ doIntent gameState =
 
 roundCleanup :: GameState -> GameState
 roundCleanup gameState =
-  modifyPlayer (\p -> p{playerBlock=0}) gameState
+  modifyPlayer (\p -> p{playerBlock=0, playerMana = playerManaMax p}) gameState
 
 showBattleStatus :: GameState -> IO()
 showBattleStatus g@(GameState player' enemy') = do
   showPlayerStatus player'
   showEnemyStatus enemy'
 
-playerTurnLoop :: GameState -> IO()
+playerTurnLoop :: GameState -> IO GameState
 playerTurnLoop g@(GameState player' enemy') = do
   showBattleStatus g
-  (newCombatant, selectedCard) <- getPlayedCard player'
-  putStrLn $ "The card selected: " <> show selectedCard
-  let modifyGame = playCard selectedCard . modifyPlayer (const newCombatant)
-  playerTurnLoop $ modifyGame g
+  playCardResult <- getPlayedCard player'
+  case playCardResult of
+    Nothing -> pure g
+    Just (playedPlayer, selectedCard) -> do
+      putStrLn $ "The card selected: " <> show selectedCard
+      let modifyGame = playCard selectedCard . modifyPlayer (const playedPlayer)
+      playerTurnLoop $ modifyGame g
 
-enemyTurn :: GameState -> GameState
-enemyTurn g@(GameState player' enemy') =
-  doIntent g
+enemyTurn :: GameState -> IO GameState
+enemyTurn g@(GameState player' enemy') = do
+  pure $ doIntent g
 
-enemiesTurn :: GameState -> GameState
+enemiesTurn :: GameState -> IO GameState
 enemiesTurn g@(GameState player' enemy') =
-  doIntent g
+  -- we'll have a list of enemies to make act later
+  enemyTurn g
 
 battleTurnLoop :: GameState -> IO()
 battleTurnLoop g@(GameState player' enemy') = do
-  playerTurnLoop $ drawCards g
-  -- enemiesTurn
-  -- roundCleanup
+  playedCardsState <- playerTurnLoop $ drawCards g
+  enemiesActedState <- enemiesTurn playedCardsState
+  let cleanedState = roundCleanup enemiesActedState
+    in battleTurnLoop cleanedState
 
 main :: IO ()
 main = do

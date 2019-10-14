@@ -11,13 +11,13 @@ allEnemies = [
     enemyName = "Tire",
     enemyHealth = 18,
     enemyBlock = 0,
-    intents = [IntentHurt 1, IntentBuff, IntentHurt 3]
+    intents = cycle[IntentHurt 1, IntentBuff, IntentHurt 3]
 },  
     Enemy {
     enemyName = "Wollypobber",
     enemyHealth = 10,
     enemyBlock = 0,
-    intents = [IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
+    intents = cycle[IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
 }]
 
 namedEnemiesList = [(enemyName e, e) | e <- allEnemies ]
