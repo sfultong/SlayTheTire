@@ -178,6 +178,7 @@ enemiesTurn g@(GameState player' enemy') = do
 
 battleTurnLoop :: GameState -> IO()
 battleTurnLoop g@(GameState player' enemy') = do
+  -- have player draw into cardHand from cardDeck
   playerTurnLoop g
   -- enemiesTurn
   -- roundCleanup
