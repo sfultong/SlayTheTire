@@ -121,11 +121,13 @@ showPlayerStatus player =
     ", Block " <> show(playerBlock player) <>
     ", Mana: " <> show(playerMana player)
 
+
+
 showEnemyStatus :: Enemy -> IO ()
 showEnemyStatus enemy =
   let currentIntent = head (intents enemy) in
     putStrLn $ enemyName enemy <> ": Health " <> show(enemyHealth enemy) <> ", Block " <> show(enemyBlock enemy)
-      <> "  Intent: " <> case currentIntent of
+      <> ". Intent: " <> case currentIntent of
       IntentHurt x -> "hurt for " <> show x <> "\n"
       IntentBuff -> "apply a buff\n"
 
@@ -163,21 +165,33 @@ roundCleanup :: GameState -> GameState
 roundCleanup gameState =
   modifyPlayer (\p -> p{playerBlock=0}) gameState
 
-playerTurnLoop :: GameState -> IO()
-playerTurnLoop g@(GameState player' enemy') = do
+showTitle :: IO()
+showTitle =
+  putStrLn "\n=== Slay the Tire ==="
+
+showBattleStatus :: GameState -> IO()
+showBattleStatus g@(GameState player' enemy') = do
   showPlayerStatus player'
   showEnemyStatus enemy'
+
+playerTurnLoop :: GameState -> IO()
+playerTurnLoop g@(GameState player' enemy') = do
   (newCombatant, selectedCard) <- getPlayedCard player'
   putStrLn $ "The card selected: " <> show selectedCard
   let modifyGame = playCard selectedCard . modifyPlayer (const newCombatant)
   playerTurnLoop $ modifyGame g
 
+enemyTurn :: GameState -> GameState
+enemyTurn g@(GameState player' enemy') =
+  doIntent g
+
 enemiesTurn :: GameState -> GameState
-enemiesTurn g@(GameState player' enemy') = do
+enemiesTurn g@(GameState player' enemy') =
   doIntent g
 
 battleTurnLoop :: GameState -> IO()
 battleTurnLoop g@(GameState player' enemy') = do
+  showBattleStatus g
   -- have player draw into cardHand from cardDeck
   playerTurnLoop g
   -- enemiesTurn
@@ -185,7 +199,8 @@ battleTurnLoop g@(GameState player' enemy') = do
 
 main :: IO ()
 main = do
-  let firstEnemy = Map.lookup "Wollypobber" namedEnemiesMap
-  case firstEnemy of  
+  showTitle
+  let tireEnemy = Map.lookup "Tire" namedEnemiesMap
+  case tireEnemy of  
     Just e -> battleTurnLoop $ GameState initialPlayer e
     Nothing -> putStrLn "You Win!"

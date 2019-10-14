@@ -9,9 +9,9 @@ import qualified Data.Map as Map
 allEnemies = [
     Enemy {
     enemyName = "Tire",
-    enemyHealth = 10,
-    enemyBlock = 2,
-    intents = [IntentHurt 1, IntentBuff, IntentHurt 3, IntentHurt 4]
+    enemyHealth = 18,
+    enemyBlock = 0,
+    intents = [IntentHurt 1, IntentBuff, IntentHurt 3]
 },  
     Enemy {
     enemyName = "Wollypobber",
