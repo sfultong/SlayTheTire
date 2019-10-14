@@ -173,9 +173,13 @@ enemiesTurn :: GameState -> GameState
 enemiesTurn g@(GameState player' enemy') = do
   doIntent g
 
+battleTurnLoop :: GameState -> IO()
+battleTurnLoop g@(GameState player' enemy') = do
+  playerTurnLoop g
+
 main :: IO ()
 main = do
   let firstEnemy = Map.lookup "Wollypobber" namedEnemiesMap
   case firstEnemy of  
-    Just e -> playerTurnLoop $ GameState initialPlayer e
+    Just e -> battleTurnLoop $ GameState initialPlayer e
     Nothing -> putStrLn "You Win!"
