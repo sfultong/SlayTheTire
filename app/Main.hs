@@ -100,14 +100,21 @@ removeCard :: Int -> Player -> (Player, Card)
 removeCard x player = let (newCards, card) = removeAtIndex x (playerHand player)
                          in (player {playerHand = newCards}, card)
 
-drawCards :: GameState -> GameState
-drawCards gameState = 
-  modifyPlayer (\p ->
-    let (newCards, newDeck) = splitAt (playerDraw p) (playerDeck p)
-    in p{
+drawCardsCount :: Int -> GameState -> GameState
+drawCardsCount 0 gameState = gameState
+drawCardsCount count gameState =
+  let (newCards, newDeck) = splitAt (count) (playerDeck $ player gameState)
+      remainingCards = count - length 
+  newCards = newCards ++ (player drawCardsCount remainingCards)
+  in modifyPlayer (\p ->
+    p{
       playerHand = (playerHand p) ++ newCards,
       playerDeck = newDeck
   }) gameState
+
+drawCards :: GameState -> GameState
+drawCards gameState = 
+  drawCardsCount (playerDraw $ player gameState ) gameState
 
 getPlayedCard :: Player -> IO (Maybe(Player, Card))
 getPlayedCard player = do
@@ -160,7 +167,8 @@ playCard :: Card -> GameState -> GameState
 playCard card gameState =
   modifyPlayer (\p -> p{
     playerBlock = playerBlock p + cardBlock card,
-    playerMana = playerMana p - cost card
+    playerMana = playerMana p - cost card,
+    playerDiscards = playerDiscards p ++ [card]
     }) $
   modifyEnemy (\e -> e{
     enemyHealth=enemyHealth e - cardHurt card
