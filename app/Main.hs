@@ -101,16 +101,14 @@ removeCard x player = let (newCards, card) = removeAtIndex x (playerHand player)
                          in (player {playerHand = newCards}, card)
 
 drawCardsCount :: Int -> GameState -> GameState
-drawCardsCount 0 gameState = gameState
-drawCardsCount count gameState =
-  let (newCards, newDeck) = splitAt (count) (playerDeck $ player gameState)
-      remainingCards = count - length 
-  newCards = newCards ++ (player drawCardsCount remainingCards)
-  in modifyPlayer (\p ->
-    p{
+drawCardsCount 0 = id
+drawCardsCount count =
+  modifyPlayer (\p ->
+    let (newCards, newDeck) = splitAt count $ playerDeck p
+    in p{
       playerHand = (playerHand p) ++ newCards,
       playerDeck = newDeck
-  }) gameState
+  })
 
 drawCards :: GameState -> GameState
 drawCards gameState = 
