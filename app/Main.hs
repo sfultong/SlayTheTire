@@ -88,7 +88,7 @@ showTitle =
 
 showCards :: Player -> String
 -- This doesn't work so well anymore now that cards are records
-showCards player = unlines . map show . zip [1..] $ playerHand player
+showCards = unlines . map show . zip [1..] . playerHand
 
 initialDeck :: [Card]
 initialDeck = catMaybes [Map.lookup c namedCardsMap | c <- ["Slap", "Slap", "Punch", "Guard", "Hit & Run"] ]
@@ -132,7 +132,7 @@ getPlayedCard player = do
       Nothing -> False
   case (validSelection, validMana, playerInput) of
     (Just x, True, _) -> pure $ pure $ removeCard x $ player
-    (Just x, False, _) -> do
+    (Just _, False, _) -> do
       putStrLn "Not enough mana."
       getPlayedCard player
     (Nothing, _, s) | toLower (head s) == 'p' ->
@@ -196,7 +196,7 @@ showBattleStatus g@(GameState player' enemy') = do
   showEnemyStatus enemy'
 
 playerTurnLoop :: GameState -> IO GameState
-playerTurnLoop g@(GameState player' enemy') = do
+playerTurnLoop g@(GameState player' _) = do
   showBattleStatus g
   playCardResult <- getPlayedCard player'
   case playCardResult of
