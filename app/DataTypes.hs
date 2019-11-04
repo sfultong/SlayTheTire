@@ -1,5 +1,7 @@
 module DataTypes where
-    
+
+import Data.List (intersperse)
+import Data.Maybe (catMaybes)
 import Safe
 
 data Card
@@ -9,7 +11,18 @@ data Card
   ,  cardHurt :: Int
   ,  cardBlock :: Int
   }
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Card where
+  show (Card cname ccost churt cblock) = cname <> " (" <> show ccost <> ")"
+    <> concat (intersperse ", " $ catMaybes [hurttext, blocktext])
+    where
+      hurttext = if churt == 0
+        then Nothing
+        else pure $ " causes " <> show churt <> " damage"
+      blocktext = if cblock == 0
+        then Nothing
+        else pure $ " protects against " <> show cblock <> " damage"
 
 data Player
   = Player
