@@ -1,5 +1,6 @@
-module DataTypes where
+  module DataTypes where
 
+import System.Random
 import Data.List (intersperse)
 import Data.Maybe (catMaybes)
 import Safe
@@ -57,5 +58,7 @@ data GameState
   = GameState
   {  player :: Player
   ,  enemy :: Enemy
+  ,  randomGen :: StdGen
   }
-  deriving (Eq, Show)
+instance Eq GameState where 
+  (==) (GameState player1 enemy1 _) (GameState player2 enemy2 _) = player1 == player2 && enemy1 == enemy2

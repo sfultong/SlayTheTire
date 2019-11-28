@@ -21,5 +21,6 @@ executable slay
   build-depends:       base
                      , containers
                      , safe
+                     , random
   default-language:    Haskell2010
   other-modules:       Enemies, DataTypes, Cards

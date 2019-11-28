@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import Enemies
 import Cards
 import DataTypes
+import System.Random
 
 specialLazy :: Bool
 specialLazy = False && True
@@ -101,20 +102,31 @@ removeCard x player = let (newCards, card) = removeAtIndex x (playerHand player)
                          in (player {playerHand = newCards}, card)
 
 shuffle :: (GameState, [a]) -> (GameState, [a])
-shuffle = id
-
+shuffle (gameState, [x]) = (gameState, [x])
+shuffle (gameState, (xs)) =
+  let (randomIndex, newRandomGen) = randomR (0, length xs - 1) $ randomGen gameState 
+      (newCards, removedCard) = removeAtIndex randomIndex xs
+      prependCard (gameState, cardList) = (gameState, removedCard : cardList)
+  in prependCard $ shuffle (gameState{randomGen=newRandomGen}, newCards)
+  
 drawCardsCount :: Int -> GameState -> GameState
-drawCardsCount 0 = id
-drawCardsCount count =
-  modifyPlayer (\p ->
-    let ((newCards, newDeck), newDiscards) = if count > length (playerDeck p)
-          then (splitAt count . shuffle $ playerDeck p ++ playerDiscards p, [])
-          else (splitAt count $ playerDeck p, playerDiscards p)
-    in p{
-      playerHand = playerHand p ++ newCards,
-      playerDeck = newDeck,
-      playerDiscards = newDiscards
-  })
+drawCardsCount 0 gameState = gameState
+drawCardsCount count gameState =
+  if count > length (playerDeck $ player gameState)
+    then let p = player gameState
+             (newGameState, shuffledDeck) = shuffle (gameState, playerDeck p ++ playerDiscards p)
+             (newCards, newDeck) = splitAt count shuffledDeck
+             in modifyPlayer (\p -> p{
+               playerHand = playerHand p ++ newCards,
+               playerDeck = newDeck,
+               playerDiscards = []
+             }) newGameState
+    else let p = player gameState
+             (newCards, newDeck) = splitAt count $ playerDeck p
+             in modifyPlayer (\p -> p{
+               playerHand = playerHand p ++ newCards,
+               playerDeck = newDeck
+             }) gameState
 
 drawCards :: GameState -> GameState
 drawCards gameState = 
@@ -163,8 +175,8 @@ showEnemyStatus enemy =
 
 initialPlayer :: Player
 initialPlayer = Player
-  { playerHealth = 10, playerBlock = 0, playerMana = 3, playerManaMax = 3, playerDraw = 2
-  , playerDeck = initialDeck, playerHand = [], playerDiscards = []
+  { playerHealth = 10, playerBlock = 0, playerMana = 3, playerManaMax = 3, playerDraw = 3
+  , playerDeck = initialDeck, playerHand = [], playerActiveDiscards = [], playerDiscards = []
   }
 
 playCard :: Card -> GameState -> GameState
@@ -197,12 +209,12 @@ roundCleanup gameState =
   modifyPlayer (\p -> p{playerBlock=0, playerMana = playerManaMax p}) gameState
 
 showBattleStatus :: GameState -> IO()
-showBattleStatus g@(GameState player' enemy') = do
+showBattleStatus g@(GameState player' enemy' _) = do
   showPlayerStatus player'
   showEnemyStatus enemy'
 
 playerTurnLoop :: GameState -> IO GameState
-playerTurnLoop g@(GameState player' _) = do
+playerTurnLoop g@(GameState player' _ _) = do
   showBattleStatus g
   playCardResult <- getPlayedCard player'
   case playCardResult of
@@ -213,16 +225,16 @@ playerTurnLoop g@(GameState player' _) = do
       playerTurnLoop $ modifyGame g
 
 enemyTurn :: GameState -> IO GameState
-enemyTurn g@(GameState player' enemy') = do
+enemyTurn g = do
   pure $ doIntent g
 
 enemiesTurn :: GameState -> IO GameState
-enemiesTurn g@(GameState player' enemy') =
+enemiesTurn g =
   -- we'll have a list of enemies to make act later
   enemyTurn g
 
 battleTurnLoop :: GameState -> IO()
-battleTurnLoop g@(GameState player' enemy') = do
+battleTurnLoop g = do
   playedCardsState <- playerTurnLoop $ drawCards g
   enemiesActedState <- enemiesTurn playedCardsState
   let cleanedState = roundCleanup enemiesActedState
@@ -230,8 +242,9 @@ battleTurnLoop g@(GameState player' enemy') = do
 
 main :: IO ()
 main = do
+  randomGen <- getStdGen
   showTitle
   let tireEnemy = Map.lookup "Tire" namedEnemiesMap
   case tireEnemy of  
-    Just e -> battleTurnLoop $ GameState initialPlayer e
+    Just e -> battleTurnLoop $ GameState initialPlayer e randomGen
     Nothing -> putStrLn "You Win!"
