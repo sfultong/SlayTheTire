@@ -100,14 +100,20 @@ removeCard :: Int -> Player -> (Player, Card)
 removeCard x player = let (newCards, card) = removeAtIndex x (playerHand player)
                          in (player {playerHand = newCards}, card)
 
+shuffle :: (GameState, [a]) -> (GameState, [a])
+shuffle = id
+
 drawCardsCount :: Int -> GameState -> GameState
 drawCardsCount 0 = id
 drawCardsCount count =
   modifyPlayer (\p ->
-    let (newCards, newDeck) = splitAt count $ playerDeck p
+    let ((newCards, newDeck), newDiscards) = if count > length (playerDeck p)
+          then (splitAt count . shuffle $ playerDeck p ++ playerDiscards p, [])
+          else (splitAt count $ playerDeck p, playerDiscards p)
     in p{
-      playerHand = (playerHand p) ++ newCards,
-      playerDeck = newDeck
+      playerHand = playerHand p ++ newCards,
+      playerDeck = newDeck,
+      playerDiscards = newDiscards
   })
 
 drawCards :: GameState -> GameState
