@@ -33,6 +33,7 @@ data Player
   ,  playerDraw :: Int
   ,  playerDeck :: [Card]
   ,  playerHand :: [Card]
+  ,  playerActiveDiscards :: [Card]
   ,  playerDiscards :: [Card]
   }
   deriving (Eq, Show)
