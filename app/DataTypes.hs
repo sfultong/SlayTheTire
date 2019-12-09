@@ -54,11 +54,15 @@ data Enemy
   }
   deriving (Eq, Show)
 
+data Location
+  = Battle
+  { enemies :: [Enemy]
+  }
+  | Campfire
+
 data GameState
   = GameState
   {  player :: Player
-  ,  enemy :: Enemy
+  ,  location :: Location
   ,  randomGen :: StdGen
   }
-instance Eq GameState where 
-  (==) (GameState player1 enemy1 _) (GameState player2 enemy2 _) = player1 == player2 && enemy1 == enemy2

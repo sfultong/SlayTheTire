@@ -80,8 +80,8 @@ pairThing = (5, "hey theer")
 ------------------------------ end didactic junk section ----------------------------
 modifyPlayer :: (Player -> Player) -> GameState -> GameState
 modifyPlayer f gameState = gameState {player = f $ player gameState}
-modifyEnemy :: (Enemy -> Enemy) -> GameState -> GameState
-modifyEnemy f gameState = gameState {enemy = f $ enemy gameState}
+modifyEnemy :: Int -> (Enemy -> Enemy) -> GameState -> GameState
+modifyEnemy idx f gameState = gameState {location = f $ enemies !! idx location gameState}
 
 showTitle :: IO()
 showTitle =
