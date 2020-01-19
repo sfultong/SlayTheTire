@@ -1,42 +1,43 @@
 module Cards where
 
-import Safe
+import Control.Lens hiding (element)
 import DataTypes
 import Data.Map (Map)
+import Safe
 import qualified Data.Map as Map
 
 allCards = [
     Card {
-    cardName = "Slap",
-    cost = 1,
-    cardHurt = 3,
-    cardBlock = 0
+    _cardName = "Slap",
+    _cost = 1,
+    _cardHurt = 3,
+    _cardBlock = 0
   },
     Card {
-    cardName = "Punch",
-    cost = 2,
-    cardHurt = 7,
-    cardBlock = 0
+    _cardName = "Punch",
+    _cost = 2,
+    _cardHurt = 7,
+    _cardBlock = 0
   },
   Card {
-    cardName = "Hit & Run",
-    cost = 3,
-    cardHurt = 4,
-    cardBlock = 5
+    _cardName = "Hit & Run",
+    _cost = 3,
+    _cardHurt = 4,
+    _cardBlock = 5
   },
   Card {
-    cardName = "Guard",
-    cost = 1,
-    cardHurt = 0,
-    cardBlock = 5
+    _cardName = "Guard",
+    _cost = 1,
+    _cardHurt = 0,
+    _cardBlock = 5
     },
   Card {
-    cardName = "Slay",
-    cost = 4,
-    cardHurt = 15,
-    cardBlock = 0
+    _cardName = "Slay",
+    _cost = 4,
+    _cardHurt = 15,
+    _cardBlock = 0
 }]
 
-namedCardsList = [(cardName e, e) | e <- allCards ]
+namedCardsList = [(view cardName e, e) | e <- allCards ]
 
 namedCardsMap = Map.fromList namedCardsList

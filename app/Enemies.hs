@@ -1,25 +1,26 @@
 module Enemies where
-    
-import Safe
+
+import Control.Lens hiding (element)
 import DataTypes
 import Data.Map (Map)
+import Safe
 import qualified Data.Map as Map
 
 
 allEnemies = [
     Enemy {
-    enemyName = "Tire",
-    enemyHealth = 18,
-    enemyBlock = 0,
-    intents = cycle[IntentHurt 1, IntentBuff, IntentHurt 3]
-},  
+    _enemyName = "Tire",
+    _enemyHealth = 18,
+    _enemyBlock = 0,
+    _intents = cycle[IntentHurt 1, IntentBuff, IntentHurt 3]
+},
     Enemy {
-    enemyName = "Wollypobber",
-    enemyHealth = 10,
-    enemyBlock = 0,
-    intents = cycle[IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
+    _enemyName = "Wollypobber",
+    _enemyHealth = 10,
+    _enemyBlock = 0,
+    _intents = cycle[IntentHurt 4, IntentBuff, IntentHurt 2, IntentHurt 8]
 }]
 
-namedEnemiesList = [(enemyName e, e) | e <- allEnemies ]
+namedEnemiesList = [(view enemyName e, e) | e <- allEnemies ]
 
 namedEnemiesMap = Map.fromList namedEnemiesList

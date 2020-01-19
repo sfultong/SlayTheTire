@@ -1,6 +1,9 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Main where
 
 import Safe
+import Control.Lens hiding (element)
 import Data.Char (toLower)
 import Data.Map (Map)
 import Data.Maybe (catMaybes)
@@ -9,6 +12,7 @@ import Enemies
 import Cards
 import DataTypes
 import System.Random
+
 
 specialLazy :: Bool
 specialLazy = False && True
@@ -72,16 +76,12 @@ firstPolyArg x = case x of -- case statement means pattern matching, like the le
   PolyThree a _ _ -> a
 
 getHealth :: Player -> Int
-getHealth = playerHealth
+getHealth = view playerHealth
 
 pairThing :: (Int, String)
 pairThing = (5, "hey theer")
 
 ------------------------------ end didactic junk section ----------------------------
-modifyPlayer :: (Player -> Player) -> GameState -> GameState
-modifyPlayer f gameState = gameState {player = f $ player gameState}
-modifyEnemy :: (Enemy -> Enemy) -> GameState -> GameState
-modifyEnemy f gameState = gameState {enemy = f $ enemy gameState}
 
 showTitle :: IO()
 showTitle =
@@ -89,7 +89,7 @@ showTitle =
 
 showCards :: Player -> String
 -- This doesn't work so well anymore now that cards are records
-showCards = unlines . map show . zip [1..] . playerHand
+showCards = unlines . map show . zip [1..] . view playerHand
 
 initialDeck :: [Card]
 initialDeck = catMaybes [Map.lookup c namedCardsMap | c <- ["Slap", "Slap", "Punch", "Guard", "Hit & Run"] ]
@@ -98,39 +98,39 @@ removeAtIndex :: Int -> [a] -> ([a], a)
 removeAtIndex x = (\(hl,tl) -> (hl ++ tail tl, head tl)) . splitAt (x - 1)
 
 removeCard :: Int -> Player -> (Player, Card)
-removeCard x player = let (newCards, card) = removeAtIndex x (playerHand player)
-                         in (player {playerHand = newCards}, card)
+removeCard x player = let (newCards, card) = removeAtIndex x $ view playerHand player
+                         in (set playerHand newCards player, card)
 
 shuffle :: (GameState, [a]) -> (GameState, [a])
 shuffle (gameState, [x]) = (gameState, [x])
 shuffle (gameState, (xs)) =
-  let (randomIndex, newRandomGen) = randomR (0, length xs - 1) $ randomGen gameState 
+  let (randomIndex, newRandomGen) = randomR (0, length xs - 1) $ view randomGen gameState
       (newCards, removedCard) = removeAtIndex randomIndex xs
       prependCard (gameState, cardList) = (gameState, removedCard : cardList)
-  in prependCard $ shuffle (gameState{randomGen=newRandomGen}, newCards)
-  
+  in prependCard $ shuffle (set randomGen newRandomGen gameState, newCards)
+
 drawCardsCount :: Int -> GameState -> GameState
 drawCardsCount 0 gameState = gameState
 drawCardsCount count gameState =
-  if count > length (playerDeck $ player gameState)
-    then let p = player gameState
-             (newGameState, shuffledDeck) = shuffle (gameState, playerDeck p ++ playerDiscards p)
+  if count > length (view (player . playerDeck) gameState)
+    then let p = view player gameState
+             (newGameState, shuffledDeck) = shuffle (gameState, view playerDeck p ++ view playerDiscards p)
              (newCards, newDeck) = splitAt count shuffledDeck
-             in modifyPlayer (\p -> p{
-               playerHand = playerHand p ++ newCards,
-               playerDeck = newDeck,
-               playerDiscards = []
-             }) newGameState
-    else let p = player gameState
-             (newCards, newDeck) = splitAt count $ playerDeck p
-             in modifyPlayer (\p -> p{
-               playerHand = playerHand p ++ newCards,
-               playerDeck = newDeck
-             }) gameState
+             in over player
+                ( over playerHand (++ newCards)
+                . set playerDeck newDeck
+                . set playerDiscards []
+                ) newGameState
+    else let p = view player gameState
+             (newCards, newDeck) = splitAt count $ view playerDeck p
+             in over player
+                ( over playerHand (++ newCards)
+                . set playerDeck newDeck
+                ) gameState
 
 drawCards :: GameState -> GameState
 drawCards gameState = 
-  drawCardsCount (playerDraw $ player gameState ) gameState
+  drawCardsCount (view (player . playerDraw) gameState) gameState
 
 getPlayedCard :: Player -> IO (Maybe(Player, Card))
 getPlayedCard player = do
@@ -143,10 +143,10 @@ getPlayedCard player = do
     selection = readMay playerInput
     -- IDEA: let player borrow resources from future, but has to "send to past" later or universe is destroyed
     validSelection = case selection of
-      Just x | x > 0 && x <= length (playerHand player) -> Just x
+      Just x | x > 0 && x <= length (view playerHand player) -> Just x
       _ -> Nothing
     validMana = case validSelection of
-      Just x -> cost(snd(removeCard x player)) <= playerMana player
+      Just x -> view cost(snd(removeCard x player)) <= view playerMana player
       Nothing -> False
   case (validSelection, validMana, playerInput) of
     (Just x, True, _) -> pure $ pure $ removeCard x $ player
@@ -161,52 +161,51 @@ getPlayedCard player = do
 
 showPlayerStatus :: Player -> IO ()
 showPlayerStatus player =
-  putStrLn $ "Player: Health " <> show(playerHealth player) <>
-    ", Block " <> show(playerBlock player) <>
-    ", Mana: " <> show(playerMana player)
+  putStrLn $ "Player: Health " <> show(view playerHealth player) <>
+    ", Block " <> show(view playerBlock player) <>
+    ", Mana: " <> show(view playerMana player)
 
 showEnemyStatus :: Enemy -> IO ()
 showEnemyStatus enemy =
-  let currentIntent = head (intents enemy) in
-    putStrLn $ enemyName enemy <> ": Health " <> show(enemyHealth enemy) <> ", Block " <> show(enemyBlock enemy)
+  let currentIntent = head (view intents enemy) in
+    putStrLn $ view enemyName enemy <> ": Health " <> show(view enemyHealth enemy) <> ", Block " <> show(view enemyBlock enemy)
       <> ". Intent: " <> case currentIntent of
       IntentHurt x -> "hurt for " <> show x <> "\n"
       IntentBuff -> "apply a buff\n"
 
 initialPlayer :: Player
 initialPlayer = Player
-  { playerHealth = 10, playerBlock = 0, playerMana = 3, playerManaMax = 3, playerDraw = 3
-  , playerDeck = initialDeck, playerHand = [], playerActiveDiscards = [], playerDiscards = []
+  { _playerHealth = 10, _playerBlock = 0, _playerMana = 3, _playerManaMax = 3, _playerDraw = 3
+  , _playerDeck = initialDeck, _playerHand = [], _playerActiveDiscards = [], _playerDiscards = []
   }
 
 playCard :: Card -> GameState -> GameState
-playCard card gameState =
-  modifyPlayer (\p -> p{
-    playerBlock = playerBlock p + cardBlock card,
-    playerMana = playerMana p - cost card,
-    playerDiscards = playerDiscards p ++ [card]
-    }) $
-  modifyEnemy (\e -> e{
-    enemyHealth=enemyHealth e - cardHurt card
-  }) gameState
+playCard card =
+  over player
+  ( over playerBlock (+ view cardBlock card)
+  . over playerMana (subtract (view cost card))
+  . over playerDiscards (card :)
+  )
+  . over enemy
+  ( over enemyHealth (subtract (view cardHurt card)))
 
 doIntent :: GameState -> GameState
 doIntent gameState =
-  let activeIntent = head (intents enemy')
-      newIntents = tail (intents enemy')
-      enemy' = enemy gameState
+  let activeIntent = head (view intents enemy')
+      newIntents = tail (view intents enemy')
+      enemy' = view enemy gameState
   in case activeIntent of
-    IntentHurt h -> modifyEnemy (\e -> e{
-      intents=newIntents
-      }) $
-      modifyPlayer (\p -> p{
-        playerHealth=minimum [playerHealth p, playerHealth p + playerBlock p - h]
-      }) gameState
-    IntentBuff -> modifyEnemy (\e -> e{intents=newIntents}) gameState
+    IntentHurt h ->
+      over enemy
+      (set intents newIntents)
+      $ over player
+      ( \p -> over playerHealth (\l -> minimum [l, l + view playerBlock p - h]) p
+      ) gameState
+    IntentBuff -> over enemy (set intents newIntents) gameState
 
 roundCleanup :: GameState -> GameState
-roundCleanup gameState =
-  modifyPlayer (\p -> p{playerBlock=0, playerMana = playerManaMax p}) gameState
+roundCleanup =
+  over player (\p -> set playerBlock 0 $ set playerMana (view playerManaMax p) p)
 
 showBattleStatus :: GameState -> IO()
 showBattleStatus g@(GameState player' enemy' _) = do
@@ -221,7 +220,7 @@ playerTurnLoop g@(GameState player' _ _) = do
     Nothing -> pure g
     Just (playedPlayer, selectedCard) -> do
       putStrLn $ "The card selected: " <> show selectedCard
-      let modifyGame = playCard selectedCard . modifyPlayer (const playedPlayer)
+      let modifyGame = playCard selectedCard . set player playedPlayer
       playerTurnLoop $ modifyGame g
 
 enemyTurn :: GameState -> IO GameState
