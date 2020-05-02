@@ -24,4 +24,4 @@ executable slay
                      , safe
                      , random
   default-language:    Haskell2010
-  other-modules:       Enemies, DataTypes, Cards
+  other-modules:       Enemies, DataTypes, Cards, Lenses

@@ -2,6 +2,7 @@ module Enemies where
 
 import Control.Lens hiding (element)
 import DataTypes
+import Lenses
 import Data.Map (Map)
 import Safe
 import qualified Data.Map as Map

@@ -9,6 +9,7 @@ import Data.Map (Map)
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import Enemies
+import Lenses
 import Cards
 import DataTypes
 import System.Random
@@ -183,7 +184,8 @@ initialPlayer = Player
   }
 
 playCard :: Card -> Maybe Int -> GameState -> Either Error GameState
-playCard card target =
+playCard card target gs =
+  {-
   case (view targetType card, target) of
     (Targeted, Just target) ->
       undefined
@@ -199,25 +201,23 @@ playCard card target =
   )
   . over (enemies . location)
   ( over enemyHealth (subtract (view cardHurt card)))
+-}
+  pure . snd $ view modifyWorld card card gs
 
 doIntent :: GameState -> GameState
 doIntent gameState =
   let activeIntent = head (view intents enemy')
       newIntents = tail (view intents enemy')
-      enemy' = view enemy gameState
+      enemy' = view (location . firstEnemy) gameState
   in case activeIntent of
     IntentHurt h ->
-      over enemy
+      over (location . firstEnemy)
       (set intents newIntents)
       $ over player
       ( \p -> over playerHealth (\l -> minimum [l, l + view playerBlock p - h]) p
       ) gameState
-    IntentBuff -> over enemy (set intents newIntents) gameState
+    IntentBuff -> over (location . firstEnemy) (set intents newIntents) gameState
  
-modifyEnemy :: Int -> (Enemy -> Enemy) -> GameState -> GameState
-modifyEnemy idx f gameState =
-  over (enemies . location) (modifyAtIndex idx f)
-
 roundCleanup :: GameState -> GameState
 roundCleanup =
   over player (\p -> set playerBlock 0 $ set playerMana (view playerManaMax p) p)
@@ -225,7 +225,7 @@ roundCleanup =
 showBattleStatus :: GameState -> IO()
 showBattleStatus g@(GameState player' enemy' _) = do
   showPlayerStatus player'
-  showEnemyStatus enemy'
+  showEnemyStatus (view (location . firstEnemy) g)
 
 playerTurnLoop :: GameState -> IO GameState
 playerTurnLoop g@(GameState player' _ _) = do
@@ -235,8 +235,12 @@ playerTurnLoop g@(GameState player' _ _) = do
     Nothing -> pure g
     Just (playedPlayer, selectedCard) -> do
       putStrLn $ "The card selected: " <> show selectedCard
-      let modifyGame = playCard selectedCard . set player playedPlayer
-      playerTurnLoop $ modifyGame g
+      let modifyGame = playCard selectedCard Nothing . set player playedPlayer
+      case modifyGame g of
+        Right gs -> playerTurnLoop gs
+        Left e -> do
+          putStrLn $ "You made a card playing error: " <> show e
+          playerTurnLoop g
 
 enemyTurn :: GameState -> IO GameState
 enemyTurn g = do
@@ -260,5 +264,5 @@ main = do
   showTitle
   let tireEnemy = Map.lookup "Tire" namedEnemiesMap
   case tireEnemy of  
-    Just e -> battleTurnLoop $ GameState initialPlayer e randomGen
+    Just e -> battleTurnLoop $ GameState initialPlayer (Battle [e]) randomGen
     Nothing -> putStrLn "You Win!"
