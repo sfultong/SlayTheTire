@@ -7,18 +7,32 @@ import Data.Maybe (catMaybes)
 import Safe
 import System.Random
 
+data Error
+  = Error{
+    errorMessage :: String
+  }
+  deriving(Eq, Show)
+
+data TargetType
+  = Untargeted
+  | Targeted
+  deriving(Eq)
+
+data CardDetail
+  = ItHurts {
+  }
+
 data Card
   = Card
   {  _cardName :: String
   ,  _cost :: Int
-  ,  _cardHurt :: Int
-  ,  _cardBlock :: Int
+  ,  _targetType :: TargetType
   }
   deriving (Eq)
 $(makeLenses ''Card)
 
 instance Show Card where
-  show (Card cname ccost churt cblock) = cname <> " (" <> show ccost <> ")"
+  show (Card cname ccost churt cblock ctargettype) = cname <> " (" <> show ccost <> ")"
     <> concat (intersperse ", " $ catMaybes [hurttext, blocktext])
     where
       hurttext = if churt == 0
@@ -59,11 +73,19 @@ data Enemy
   }
   deriving (Eq, Show)
 $(makeLenses ''Enemy)
+ 
+data Location
+  = Battle
+  {  _enemies :: [Enemy]
+  }
+  | Campfire
+  deriving (Eq, Show)
+$(makeLenses ''Location)
 
 data GameState
   = GameState
   {  _player :: Player
-  ,  _enemy :: Enemy
+  ,  _location :: Location
   ,  _randomGen :: StdGen
   }
 $(makeLenses ''GameState)

@@ -97,6 +97,9 @@ initialDeck = catMaybes [Map.lookup c namedCardsMap | c <- ["Slap", "Slap", "Pun
 removeAtIndex :: Int -> [a] -> ([a], a)
 removeAtIndex x = (\(hl,tl) -> (hl ++ tail tl, head tl)) . splitAt (x - 1)
 
+modifyAtIndex :: Int -> (a -> a) -> [a] -> [a]
+modifyAtIndex x f = (\(hl,tl) -> (hl ++ [f (head tl)] ++ tail tl)) . splitAt (x - 1)
+
 removeCard :: Int -> Player -> (Player, Card)
 removeCard x player = let (newCards, card) = removeAtIndex x $ view playerHand player
                          in (set playerHand newCards player, card)
@@ -179,14 +182,22 @@ initialPlayer = Player
   , _playerDeck = initialDeck, _playerHand = [], _playerActiveDiscards = [], _playerDiscards = []
   }
 
-playCard :: Card -> GameState -> GameState
-playCard card =
+playCard :: Card -> Maybe Int -> GameState -> Either Error GameState
+playCard card target =
+  case (view targetType card, target) of
+    (Targeted, Just target) ->
+      undefined
+    (Untargeted, Nothing) ->
+      undefined
+    _ ->
+      Left $ Error "Must provide appropriate target type for card."
+
   over player
   ( over playerBlock (+ view cardBlock card)
   . over playerMana (subtract (view cost card))
   . over playerDiscards (card :)
   )
-  . over enemy
+  . over (enemies . location)
   ( over enemyHealth (subtract (view cardHurt card)))
 
 doIntent :: GameState -> GameState
@@ -202,6 +213,10 @@ doIntent gameState =
       ( \p -> over playerHealth (\l -> minimum [l, l + view playerBlock p - h]) p
       ) gameState
     IntentBuff -> over enemy (set intents newIntents) gameState
+ 
+modifyEnemy :: Int -> (Enemy -> Enemy) -> GameState -> GameState
+modifyEnemy idx f gameState =
+  over (enemies . location) (modifyAtIndex idx f)
 
 roundCleanup :: GameState -> GameState
 roundCleanup =
